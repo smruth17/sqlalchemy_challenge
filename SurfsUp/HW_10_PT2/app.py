@@ -5,6 +5,7 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
 import datetime as dt
+from datetime import datetime
 
 from flask import Flask, jsonify
 
@@ -29,8 +30,8 @@ def home():
 	f"/api/v1.0/precipitation<br/>" 
 	f"/api/v1.0/stations<br/>"
 	f"/api/v1.0/tobs<br/>"    
-	f"/api/v1.0/<start><br/>"
-	f"/api/v1.0/<start>/<end><br/>"
+	f"/api/v1.0/start_date/<start><br/>"
+	f"/api/v1.0/start_date/<start>/end_date/<end><br/>"
 	)
 
 # QUERIES
@@ -94,8 +95,9 @@ def tobs():
 		.filter(Measurement.station == most_active) \
 		.filter(Measurement.date >= begin_date) \
 		.all()
-
 	
+	session.close()
+
 	tobs_data = []
 	for result in results:
 		tobs_data.append({
@@ -108,23 +110,55 @@ def tobs():
 
 # Accepts the start date as a parameter from the URL 
 # Returns the min, max, and average temperatures calculated from the given start date to the end of the dataset
-# @app.route("/api/v1.0/<start>")
-# def <start>():
-# session = Session(engine)
+# Received help from the Xpert Learning Assistant
+@app.route("/api/v1.0/start_date/<start>")
+def start_date(start):
+	session = Session(engine)
 
-# 	return(jsonify(data))
+	start_date = datetime.strptime('2010-01-01', '%Y-%m-%d')
+	result = session.query(func.min(Measurement.tobs).label('Min_Temp'),
+			func.max(Measurement.tobs).label('Max_Temp'),
+			func.avg(Measurement.tobs).label('Avg_Temp')).\
+			filter(Measurement.date >= start_date).first()
+	
+	session.close()
 
+	start_dict = {
+    'Min_Temp': result[0],
+    'Max_Temp': result[1],
+    'Avg_Temp': result[2]
+}
+	return(jsonify(start_dict))
+	
 # Accepts the start and end dates as parameters from the URL 
 # Returns the min, max, and average temperatures calculated from the given start date to the given end date 
-# @app.route("/api/v1.0/<start>")
-# def <start>():
-# 	session = Session(engine)
-
-# 	return(jsonify(data))
-
-# Run the App
-if __name__ == '__main__':
-	app.run(debug=True)
-
-
+@app.route("/api/v1.0/start_date/<start>/end_date/<end>")
+def start_end(start, end):
+    session = Session(engine)
     
+
+    start_date = datetime.strptime('2010-01-01', '%Y-%m-%d')
+    end_date = datetime.strptime('2017-08-23', '%Y-%m-%d')
+    result = session.query(
+			func.min(Measurement.tobs).label('Min_Temp'),
+			func.max(Measurement.tobs).label('Max_Temp'),
+			func.avg(Measurement.tobs).label('Avg_Temp')
+			).filter(
+			Measurement.date >= start_date,
+			Measurement.date <= end_date
+			).all()
+
+    session.close()
+
+    end_dict = {
+	'start_date': start,
+	'end_date': end,
+	'Min_Temp': result[0],
+	'Max_Temp': result[0],
+	'Avg_Temp': result[0]
+}
+	
+    return(jsonify(end_dict))
+
+if __name__ == '__main__':
+    app.run(debug=True)
